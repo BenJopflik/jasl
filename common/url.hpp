@@ -1,41 +1,7 @@
 #pragma once
 #include <string>
 #include <cassert>
-
-class SubString
-{
-public:
-    SubString() {}
-
-    SubString(uint64_t begin, uint64_t end)
-    {
-        set(begin, end);
-    }
-
-    void set(uint64_t begin, uint64_t end)
-    {
-        m_length = end - begin;
-        m_begin = begin;
-        m_end = end;
-    }
-
-    std::string get(const std::string & source) const
-    {
-        assert(m_length > 0);
-        return source.substr(m_begin, m_length);
-    }
-
-    operator bool () const
-    {
-        return m_length > 0;
-    }
-
-private:
-    uint64_t m_begin {0};
-    uint64_t m_end {0};
-    int64_t m_length {-1};
-
-};
+#include "common/sub_string.hpp"
 
 class Url
 {
