@@ -12,13 +12,13 @@ public:
 
     operator bool () const {return m_valid;}
 
-    std::string get_url()   const {return m_url;}
-    std::string get_proto() const {return m_proto.get(m_url);}
-    std::string get_login() const {return m_login.get(m_url);}
-    std::string get_pass()  const {return m_pass.get(m_url);}
-    std::string get_host()  const {return m_host.get(m_url);}
-    std::string get_port()  const {return m_port.get(m_url);}
-    std::string get_tail()  const {return m_tail.get(m_url);}
+    std::string url()   const {return m_url;}
+    std::string proto() const {return m_proto.str(m_url);}
+    std::string login() const {return m_login.str(m_url);}
+    std::string pass()  const {return m_pass.str(m_url);}
+    std::string host()  const {return m_host.str(m_url);}
+    std::string port()  const {return m_port.str(m_url);}
+    std::string tail()  const {return m_tail.str(m_url);}
 
 private:
     void parse(const std::string & url);

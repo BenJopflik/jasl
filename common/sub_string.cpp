@@ -25,19 +25,28 @@ void SubString::set(uint64_t begin, uint64_t end)
 
 std::string SubString::str(const std::string & source) const
 {
-    assert((m_begin + m_length < source.size()));
-    return source.substr(m_begin, m_length);
+    return str(source.c_str(), source.size());
+}
+
+std::string SubString::str(const char * source, uint64_t size) const
+{
+    assert((m_begin + m_length <= size));
+    return std::string(source + m_begin, m_length);
 }
 
 std::string SubString::substr(const std::string & source, uint64_t offset, uint64_t length) const
 {
-    const uint64_t SOURCE_SIZE = source.size();
+    return substr(source.c_str(), source.size(), offset, length);
+}
+
+std::string SubString::substr(const char * source, uint64_t size, uint64_t offset, uint64_t length) const
+{
     const uint64_t SUBSTR_OFFSET = m_begin + offset;
 
-    if (SUBSTR_OFFSET > SOURCE_SIZE || SUBSTR_OFFSET + length > SOURCE_SIZE)
+    if (SUBSTR_OFFSET > size || SUBSTR_OFFSET + length > size)
         return "";
 
-    return source.substr(SUBSTR_OFFSET, length);
+    return std::string(source + SUBSTR_OFFSET, length);
 }
 
 uint64_t SubString::start() const

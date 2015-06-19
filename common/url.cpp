@@ -63,17 +63,17 @@ void Url::parse(const std::string & url)
 void Url::print() const
 {
     if (m_proto)
-        std::cerr << "PROTO: " << m_proto.get(m_url) << std::endl;
+        std::cerr << "PROTO: " << m_proto.str(m_url) << std::endl;
     if (m_login)
-        std::cerr << "LOGIN: " << m_login.get(m_url) << std::endl;
+        std::cerr << "LOGIN: " << m_login.str(m_url) << std::endl;
     if (m_pass)
-        std::cerr << "PASS: " << m_pass.get(m_url) << std::endl;
+        std::cerr << "PASS: " << m_pass.str(m_url) << std::endl;
     if (m_host)
-        std::cerr << "HOST: " << m_host.get(m_url) << std::endl;
+        std::cerr << "HOST: " << m_host.str(m_url) << std::endl;
     if (m_port)
-        std::cerr << "PORT: " << m_port.get(m_url) << std::endl;
+        std::cerr << "PORT: " << m_port.str(m_url) << std::endl;
     if (m_tail)
-        std::cerr << "TAIL: " << m_tail.get(m_url) << std::endl;
+        std::cerr << "TAIL: " << m_tail.str(m_url) << std::endl;
 }
 
 

@@ -4,7 +4,7 @@
 struct IpAddr
 {
 public:
-    void set(const std::string & ip, uint16_t port);
+    void set(const std::string & host, uint16_t port);
     void clear();
     std::string get() const;
 
