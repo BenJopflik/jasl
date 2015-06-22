@@ -1,5 +1,7 @@
 #include "common/sub_string.hpp"
+#include "common/string_wrapper.hpp"
 #include <cassert>
+#include <stdexcept>
 
 SubString::SubString()
 {
@@ -23,30 +25,24 @@ void SubString::set(uint64_t begin, uint64_t end)
     m_end = end;
 }
 
-std::string SubString::str(const std::string & source) const
+std::string SubString::str(const StringWrapper & source) const
 {
-    return str(source.c_str(), source.size());
+    return substr(source);
 }
 
-std::string SubString::str(const char * source, uint64_t size) const
-{
-    assert((m_begin + m_length <= size));
-    return std::string(source + m_begin, m_length);
-}
-
-std::string SubString::substr(const std::string & source, uint64_t offset, uint64_t length) const
-{
-    return substr(source.c_str(), source.size(), offset, length);
-}
-
-std::string SubString::substr(const char * source, uint64_t size, uint64_t offset, uint64_t length) const
+std::string SubString::substr(const StringWrapper & source, uint64_t offset, uint64_t length) const
 {
     const uint64_t SUBSTR_OFFSET = m_begin + offset;
+    const uint64_t SOURCE_SIZE = source.size();
 
-    if (SUBSTR_OFFSET > size || SUBSTR_OFFSET + length > size)
-        return "";
+    if (SUBSTR_OFFSET > SOURCE_SIZE)
+        throw std::runtime_error("SubString's begin is out of range");
 
-    return std::string(source + SUBSTR_OFFSET, length);
+    uint64_t real_size = (length) ? (length) : m_length;
+    if (SUBSTR_OFFSET + real_size > SOURCE_SIZE)
+        real_size = SOURCE_SIZE - SUBSTR_OFFSET;
+
+    return source.substr(SUBSTR_OFFSET, real_size);
 }
 
 uint64_t SubString::start() const

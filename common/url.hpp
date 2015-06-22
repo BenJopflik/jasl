@@ -2,6 +2,7 @@
 #include <string>
 #include <cassert>
 #include "common/sub_string.hpp"
+#include "string_wrapper.hpp"
 
 class Url
 {
