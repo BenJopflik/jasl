@@ -1,10 +1,8 @@
 #include "ip_addr.hpp"
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
+#include "common/to_string.hpp"
 
 static std::string host_to_ip(const std::string & host)
 {
@@ -60,7 +58,6 @@ static std::string host_to_ip(const std::string & host)
     return std::move(output);
 }
 
-
 void IpAddr::set(const std::string & host, uint16_t port_)
 {
     sockaddr_in sa;
@@ -71,6 +68,17 @@ void IpAddr::set(const std::string & host, uint16_t port_)
 
     port = port_;
     full_addr = ip + ":" + std::to_string(port);
+    memset(&addr, 0, sizeof(addr));
+    addr = IpAddr::get_sockaddr_in(ip, port);
+}
+
+void IpAddr::set(const sockaddr_in & addr)
+{
+    full_addr = sockaddr_to_string(addr);
+    uint64_t delim = full_addr.rfind(':');
+    ip = full_addr.substr(0, delim);
+    port = std::stol(full_addr.substr(delim + 1));
+    this->addr = addr;
 }
 
 void IpAddr::clear()
@@ -78,11 +86,16 @@ void IpAddr::clear()
     full_addr = "";
     ip = "";
     port = 0;
+    memset(&addr, 0, sizeof(addr));
 }
 
-std::string IpAddr::get() const
+sockaddr_in IpAddr::get_sockaddr_in(const StringWrapper & ip, uint16_t port)
 {
-    return full_addr;
+    sockaddr_in addr;
+    addr.sin_family = AF_INET; // TODO add ipv6
+    if (::inet_pton(addr.sin_family, ip.c_str(), &addr.sin_addr) <= 0)
+        throw std::runtime_error(std::string("get_sockaddr_in failed. reason: ").append(strerror(errno)));
+
+    addr.sin_port = htons(port);
+    return addr;
 }
-
-

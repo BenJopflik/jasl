@@ -164,7 +164,7 @@ std::string Socket::get_last_error() const
 
 std::string Socket::get_remote_addr() const
 {
-    return std::string(m_remote_ip.get());
+    return std::string(m_remote_ip.full_addr);
 }
 
 Poller * Socket::get_poller() const
