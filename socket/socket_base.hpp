@@ -30,6 +30,7 @@ protected:
     void create();
     void listen() const;
     void connect(const std::string & ip_addr, uint16_t port);
+    void connect(const sockaddr_in & saddr);
     void bind(const std::string & ip_addr, uint16_t port);
     NewConnection accept();
 

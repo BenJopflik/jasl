@@ -5,6 +5,12 @@ TcpClient::TcpClient(const std::string & ip_addr, uint64_t port) : TcpSocket(ip_
 
 }
 
+TcpClient::TcpClient(const sockaddr_in & addr) : TcpSocket(addr)
+{
+
+}
+
+
 TcpClient::~TcpClient()
 {
 

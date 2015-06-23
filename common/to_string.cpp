@@ -41,15 +41,15 @@ std::string socket_family_to_string(uint64_t family)
     }
 }
 
-std::string sockaddr_to_string(const sockaddr_in * addr)
+std::string sockaddr_to_string(const sockaddr_in & addr)
 {
     char ip[INET_ADDRSTRLEN];
     memset(ip, 0, INET_ADDRSTRLEN);
 
     std::string out;
-    out = inet_ntop(AF_INET, &addr->sin_addr, ip, INET_ADDRSTRLEN);
+    out = inet_ntop(addr.sin_family, &addr.sin_addr, ip, INET_ADDRSTRLEN);
     out += ":";
-    out += std::to_string(ntohs(addr->sin_port));
+    out += std::to_string(ntohs(addr.sin_port));
     return std::move(out);
 }
 

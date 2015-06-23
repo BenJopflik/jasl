@@ -6,6 +6,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <errno.h>
+#include <stdexcept>
 
 #include "common/to_string.hpp"
 
@@ -110,17 +111,19 @@ void SocketBase::connect(const std::string & ip_addr, uint16_t port)//, uint64_t
     addr.sin_port = htons(port);
 
     fill_sin_addr(ip_addr, addr);
+    connect(addr);
 
-    if (::connect(m_fd, (sockaddr *)&addr, sizeof(addr)) < 0)
+    m_remote_ip.set(addr);
+}
+
+void SocketBase::connect(const sockaddr_in & saddr)
+{
+    if (::connect(m_fd, (sockaddr *)&saddr, sizeof(saddr)) < 0)
     {
-        auto err = errno;
-        if (err != EINPROGRESS || !personal_poll(m_fd, EPOLLOUT, 1000))
-        {
-            std::cerr << "connect failed : " << strerror(err) << std::endl;
-            exit(1);
-        }
+        if (errno != EINPROGRESS || !personal_poll(m_fd, EPOLLOUT, 1000))
+            throw std::runtime_error(std::string("connection failed: ").append(strerror(errno)));
     }
-    m_remote_ip.set(ip_addr, port);
+
 }
 
 // TODO add support for AF_LOOPBACK etc.
