@@ -12,5 +12,7 @@ public:
     virtual ~TcpSocket();
 
 private:
+    TcpSocket(const TcpSocket &) = delete;
+    void operator = (const TcpSocket &) = delete;
 
 };

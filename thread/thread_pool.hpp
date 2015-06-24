@@ -55,7 +55,7 @@ public:
         while (!result);
 
         if (!result)
-            std::cerr << "no room for task" << std::cerr;
+            std::cerr << "no room for task" << std::endl;
 
         return result;
     }

@@ -6,9 +6,11 @@
 #include <unordered_map>
 
 #include "memory/spsc_queue.hpp"
+#include "memory/mpsc_queue.hpp"
 #include "socket/socket_base.hpp"
 #include "thread/worker.hpp"
 #include "common/event.hpp"
+#include "thread/spinlock.hpp"
 
 struct Action
 {
@@ -73,7 +75,7 @@ private:
     uint64_t m_epoll_events_buffer_size {0};
 
     SPSCQueue<Event> m_events;
-    SPSCQueue<std::pair<int64_t, Action>> m_updates; // TODO change to MPSCQueue
+    MPSCQueue<std::pair<int64_t, Action>, SpinlockYield> m_updates; // TODO change to MPSCQueue
 //    MPSCQueue<std::pair<int64_t, Action>> m_updates;
 
     std::unordered_map<int64_t, Action> m_active_sockets;

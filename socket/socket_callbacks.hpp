@@ -13,7 +13,7 @@ public:
     virtual void on_error(Socket *) = 0;
 
 //    virtual void on_accept(Socket *, const NewConnection &) = 0;
-    virtual void on_close(Socket *) = 0;
+    virtual void on_close(Socket *, int64_t fd) = 0; // fd - CLOSED fd
     virtual void on_connected(Socket *) = 0;
     virtual void on_rearm(Socket *) = 0;
 };

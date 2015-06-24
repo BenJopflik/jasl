@@ -188,14 +188,16 @@ void Socket::write()
 
 void Socket::close()
 {
-#ifdef DEBUG
+//#ifdef DEBUG
     std::cerr << "Closing " << socket_type_to_string(m_socket_type) << " socket #" << m_fd << std::endl;
-#endif
+//#endif
 
-    m_cb->on_close(this);
-
+    int64_t fd = m_fd;
     ::close(m_fd);
     m_fd = INVALID_FD;
+
+    if (m_cb)
+        m_cb->on_close(this, fd);
 }
 
 void Socket::error()

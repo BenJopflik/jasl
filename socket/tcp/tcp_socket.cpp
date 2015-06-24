@@ -8,7 +8,15 @@ TcpSocket::TcpSocket(const std::string & ip_addr, uint64_t port)
     create();
     set_reuseaddr(1);
     set_nonblock();
-    connect(ip_addr, port);
+    try
+    {
+        connect(ip_addr, port);
+    }
+    catch (const std::runtime_error & err)
+    {
+        close();
+        throw;
+    }
 
 }
 
@@ -27,6 +35,7 @@ TcpSocket::TcpSocket(const sockaddr_in & addr)
     catch (const std::runtime_error & err)
     {
         close();
+        throw;
     }
 }
 

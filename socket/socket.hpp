@@ -18,6 +18,7 @@ class Socket : public SocketBase
 {
 
 public:
+    virtual ~Socket();
     virtual void read();
     virtual void write();
     virtual void error();
@@ -33,6 +34,7 @@ public:
     void add_to_poller(uint64_t mask, Poller * = nullptr);
     void remove_from_poller();
 
+    int64_t get_fd() const {return m_fd;}
     std::string get_last_error() const;
     std::string get_remote_addr() const;
     Poller * get_poller() const;
@@ -40,13 +42,15 @@ public:
     template<class T, typename ... Args>
     void set_callbacks(Args... args)
     {
-        m_cb.reset(new T(args...));
+        m_cb.reset(new T(std::forward<Args>(args)...));
     }
 
 
 protected:
     Socket();
-    virtual ~Socket();
+    Socket(const Socket &) = delete;
+    void operator = (const Socket &) = delete;
+
     virtual void operation_timeout() const;
 
 // options
