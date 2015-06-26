@@ -5,15 +5,20 @@ class Socket;
 
 class SocketCallbacks
 {
+friend Socket;
+
+protected:
+    SocketCallbacks() {}
+
 public:
     virtual ~SocketCallbacks() {}
 
-    virtual void on_read(Socket *) = 0;
-    virtual void on_write(Socket *) = 0;
-    virtual void on_error(Socket *) = 0;
+    virtual void on_read(Socket *) {}
+    virtual void on_write(Socket *) {}
+    virtual void on_error(Socket *) {}
 
 //    virtual void on_accept(Socket *, const NewConnection &) = 0;
-    virtual void on_close(Socket *, int64_t fd) = 0; // fd - CLOSED fd
-    virtual void on_connected(Socket *) = 0;
-    virtual void on_rearm(Socket *) = 0;
+    virtual void on_close(Socket *, int64_t fd) {} // fd - CLOSED fd
+    virtual void on_connected(Socket *) {}
+    virtual void on_rearm(Socket *) {}
 };

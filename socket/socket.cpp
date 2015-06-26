@@ -13,6 +13,7 @@
 
 Socket::Socket()
 {
+    m_cb.reset(new SocketCallbacks());
 }
 
 Socket::~Socket()
@@ -176,13 +177,11 @@ Poller * Socket::get_poller() const
 // callbacks
 void Socket::read()
 {
-    assert(m_cb && "invalid callback");
     m_cb->on_read(this);
 }
 
 void Socket::write()
 {
-    assert(m_cb && "invalid callback");
     m_cb->on_write(this);
 }
 
@@ -196,19 +195,16 @@ void Socket::close()
     ::close(m_fd);
     m_fd = INVALID_FD;
 
-    if (m_cb)
-        m_cb->on_close(this, fd);
+    m_cb->on_close(this, fd);
 }
 
 void Socket::error()
 {
-    assert(m_cb && "invalid callback");
     m_cb->on_error(this);
 }
 
 void Socket::rearm()
 {
-    assert(m_cb && "invalid callback");
     m_cb->on_rearm(this);
 }
 // callbacks
