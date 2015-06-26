@@ -11,6 +11,7 @@
 
 #include "socket_base.hpp"
 #include "socket_callbacks.hpp"
+#include "poller/action.hpp"
 
 class Poller;
 

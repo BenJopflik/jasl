@@ -11,33 +11,7 @@
 #include "thread/worker.hpp"
 #include "common/event.hpp"
 #include "thread/spinlock.hpp"
-
-struct Action
-{
-    enum
-    {
-        DELETE_MASK = ~(uint64_t(0)),
-
-    };
-
-public:
-    Action()
-    {}
-
-    Action(uint64_t mask, uint64_t timeout, uint64_t user_data) :
-                                     mask(mask | EPOLLHUP | EPOLLRDHUP),
-                                     timeout_in_milliseconds(timeout),
-                                     user_data(user_data)
-                                     {}
-
-public:
-    uint64_t mask {EPOLLHUP | EPOLLRDHUP};
-    uint64_t timeout_in_milliseconds {0};
-    uint64_t user_data {0};
-
-};
-
-
+#include "poller/action.hpp"
 
 class Poller
 {
