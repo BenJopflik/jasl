@@ -54,6 +54,11 @@ BitSet::BitSet(uint64_t size, const uint8_t * source)
     bind(size, source);
 }
 
+BitSet::BitSet(const BitSet & right)
+{
+    bind(right.m_size, right.m_data.get());
+}
+
 BitSet::~BitSet()
 {
 
@@ -80,6 +85,12 @@ void BitSet::set_all(bool val)
         throw std::runtime_error("uninitialized bitset");
 
     memset(m_begin, (val) ? 0xff : 0x00, m_size);
+}
+
+BitSet & BitSet::operator = (const BitSet & right)
+{
+    bind(right.m_size, right.m_data.get());
+    return *this;
 }
 
 Bit BitSet::operator [] (uint64_t index)

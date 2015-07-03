@@ -35,10 +35,13 @@ class BitSet
 public:
     BitSet();
     BitSet(uint64_t size_in_bytes, const uint8_t * source = nullptr);
+    BitSet(const BitSet & right);
     ~BitSet();
 
     void bind(uint64_t size_in_bytes, const uint8_t * source = nullptr);
     uint64_t size() const;
+
+    BitSet & operator = (const BitSet & right);
 
     Bit operator [] (uint64_t index);
     bool operator [] (uint64_t index) const;
