@@ -123,6 +123,11 @@ void Socket::set_reuseaddr(int val) const
     ::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 }
 
+void Socket::set_reuseport(int val) const
+{
+    ::setsockopt(m_fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+}
+
 void Socket::set_keepalive(int val) const
 {
     ::setsockopt(m_fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));

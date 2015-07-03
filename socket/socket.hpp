@@ -56,6 +56,7 @@ protected:
 
 // options
     void set_reuseaddr(int val = 1) const;
+    void set_reuseport(int val = 1) const;
     void set_keepalive(int val = 1) const;
     void set_nodelay(int val = 1) const;
     void set_nonblock() const;
