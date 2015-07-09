@@ -48,8 +48,8 @@ private:
     std::unique_ptr<epoll_event[]> m_epoll_events;
     uint64_t m_epoll_events_buffer_size {0};
 
-    SPSCQueue<Event> m_events;
-    MPSCQueue<std::pair<int64_t, Action>, SpinlockYield> m_updates; // TODO change to MPSCQueue
+    SPSCQueue<Event, false> m_events;
+    MPSCQueue<std::pair<int64_t, Action>, SpinlockYield> m_updates;
 //    MPSCQueue<std::pair<int64_t, Action>> m_updates;
 
     std::unordered_map<int64_t, Action> m_active_sockets;

@@ -60,7 +60,7 @@ private:
     }
 
 private:
-    SPSCQueue<std::function<void()>> m_tasks;
+    SPSCQueue<std::function<void()>, false> m_tasks;
     std::thread m_thread;
     bool m_done {false};
 

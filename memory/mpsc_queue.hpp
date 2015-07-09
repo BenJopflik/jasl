@@ -3,8 +3,8 @@
 #include <mutex>
 #include "memory/spsc_queue.hpp"
 
-template <class T, class Lock>
-class MPSCQueue : private SPSCQueue<T>
+template <class T, class Lock, bool RETURN_ON_EMPTY = true>
+class MPSCQueue : private SPSCQueue<T, RETURN_ON_EMPTY>
 {
 public:
     MPSCQueue(uint64_t max_size) : SPSCQueue<T>(max_size)
