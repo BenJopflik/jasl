@@ -5,9 +5,10 @@
 
 // std::thread wrapper
 #include <thread>
+#include "common/non_copyable.hpp"
 #include "memory/spsc_queue.hpp"
 
-class Worker
+class Worker : public NonCopyable
 {
     const std::chrono::microseconds SLEEP_TIME {500};
 
@@ -37,9 +38,6 @@ public:
 
 
 private:
-    Worker(const Worker &) = delete;
-    void operator = (const Worker &) = delete;
-
     Worker(const uint64_t task_queue_size) : m_tasks(task_queue_size) {}
 
     void run()

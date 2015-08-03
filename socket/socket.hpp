@@ -49,9 +49,6 @@ public:
 
 protected:
     Socket();
-    Socket(const Socket &) = delete;
-    void operator = (const Socket &) = delete;
-
     virtual void operation_timeout() const;
 
 // options

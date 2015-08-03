@@ -8,8 +8,9 @@
 #include "common/timer.hpp"
 #include "common/ip_addr.hpp"
 #include "common/new_connection.hpp"
+#include "common/non_copyable.hpp"
 
-class SocketBase
+class SocketBase : public NonCopyable
 {
 public:
     virtual void close();
