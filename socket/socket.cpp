@@ -201,6 +201,7 @@ void Socket::close()
     m_fd = INVALID_FD;
 
     m_cb->on_close(this, fd);
+    destroy();
 }
 
 void Socket::error()
@@ -214,5 +215,9 @@ void Socket::rearm()
 }
 // callbacks
 
+void Socket::destroy()
+{
+    delete this;
+}
 
 

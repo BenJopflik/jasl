@@ -19,7 +19,6 @@ class Socket : public SocketBase
 {
 
 public:
-    virtual ~Socket();
     virtual void read();
     virtual void write();
     virtual void error();
@@ -49,6 +48,7 @@ public:
 
 protected:
     Socket();
+    virtual ~Socket();
     virtual void operation_timeout() const;
 
 // options
@@ -61,5 +61,8 @@ protected:
 protected:
     Poller * m_poller {nullptr};
     std::unique_ptr<SocketCallbacks> m_cb;
+
+private:
+    void destroy();
 
 };

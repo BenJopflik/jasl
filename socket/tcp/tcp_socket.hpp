@@ -5,14 +5,9 @@
 
 class TcpSocket : public Socket
 {
-
-public:
+protected:
     TcpSocket(const sockaddr_in & addr);
     TcpSocket(const std::string & ip_addr, uint64_t port);
     virtual ~TcpSocket();
-
-private:
-    TcpSocket(const TcpSocket &) = delete;
-    void operator = (const TcpSocket &) = delete;
 
 };
