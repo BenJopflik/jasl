@@ -23,7 +23,7 @@ public:
     virtual void write();
     virtual void error();
     virtual void rearm();
-    virtual void close() override;
+    virtual void close(bool clear_memory = true) override;
 
     virtual uint64_t read(uint8_t * data, uint64_t data_size, bool & eof);
     virtual uint64_t write(const uint8_t * data, uint64_t data_size);

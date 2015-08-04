@@ -14,7 +14,7 @@ TcpSocket::TcpSocket(const std::string & ip_addr, uint64_t port)
     }
     catch (const std::runtime_error & err)
     {
-        close();
+        close(false);
         throw;
     }
 
@@ -34,7 +34,7 @@ TcpSocket::TcpSocket(const sockaddr_in & addr)
     }
     catch (const std::runtime_error & err)
     {
-        close();
+        close(false);
         throw;
     }
 }

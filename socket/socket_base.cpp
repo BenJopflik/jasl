@@ -22,7 +22,7 @@ SocketBase::~SocketBase()
         close();
 }
 
-void SocketBase::close()
+void SocketBase::close(bool clear_memory)
 {
 
 }

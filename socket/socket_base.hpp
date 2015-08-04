@@ -13,7 +13,7 @@
 class SocketBase : public NonCopyable
 {
 public:
-    virtual void close();
+    virtual void close(bool clear_memory = true);
 
 protected:
     using Fd = int64_t;

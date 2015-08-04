@@ -190,7 +190,7 @@ void Socket::write()
     m_cb->on_write(this);
 }
 
-void Socket::close()
+void Socket::close(bool clear_memory)
 {
 //#ifdef DEBUG
     std::cerr << "Closing " << socket_type_to_string(m_socket_type) << " socket #" << m_fd << std::endl;
@@ -201,7 +201,8 @@ void Socket::close()
     m_fd = INVALID_FD;
 
     m_cb->on_close(this, fd);
-    destroy();
+    if (clear_memory)
+        destroy();
 }
 
 void Socket::error()
