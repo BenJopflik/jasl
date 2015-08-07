@@ -14,6 +14,8 @@ class SocketBase : public NonCopyable
 {
 public:
     virtual void close(bool clear_memory = true);
+    IpAddr get_local_ip()  const {return m_local_ip;}
+    IpAddr get_remote_ip() const {return m_remote_ip;}
 
 protected:
     using Fd = int64_t;

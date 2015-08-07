@@ -74,7 +74,7 @@ uint64_t Socket::read(uint8_t * data, uint64_t data_size, bool & eof)
             if (errno != EWOULDBLOCK && errno != EAGAIN)
             {
                 std::cerr << "read failed : " << strerror(errno) << std::endl;
-                exit(1);
+                throw std::runtime_error(strerror(errno));
             }
 
             break;
@@ -99,7 +99,7 @@ uint64_t Socket::write(const uint8_t * data, uint64_t data_size)
             if (errno != EWOULDBLOCK && errno != EAGAIN)
             {
                 std::cerr << "write failed : " << strerror(errno) << std::endl;
-                exit(1);
+                throw std::runtime_error(strerror(errno));
             }
             else
             {

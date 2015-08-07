@@ -33,7 +33,7 @@ void SocketBase::create()
     if (m_fd < INVALID_FD)
     {
         std::cerr << "Unable to create " << socket_type_to_string(m_socket_type) << " socket: " << strerror(errno) << std::endl;
-        exit(1);
+        throw std::runtime_error("Unable to create socket");
     }
 
 #ifdef DEBUG
@@ -47,11 +47,11 @@ static void fill_sin_addr(const std::string & source, sockaddr_in & addr)
     if (::inet_pton(addr.sin_family, source.c_str(), &addr.sin_addr) <= 0)
     {
         std::cerr << "inet_pton failed : " << strerror(errno) << std::endl;
-        exit(1);
+        throw std::runtime_error("inet_pton failed");
     }
 }
 
-// TODO create poller class
+// TODO rm personal_poll. use normal Poller class
 static bool personal_poll(int64_t fd, uint64_t type, uint64_t timeout_in_milliseconds)
 {
     bool ret = false;
@@ -83,10 +83,14 @@ static bool personal_poll(int64_t fd, uint64_t type, uint64_t timeout_in_millise
                 elapsed = timer.elapsed_milliseconds();
                 if ( elapsed < timeout_in_milliseconds)
                     continue;
+                else
+                    nfds = 0;
             }
-
-            std::cerr << "epoll failed : " << strerror(errno) << std::endl;
-            exit(1);
+            else
+            {
+                std::cerr << "personal epoll failed : " << strerror(errno) << std::endl;
+                throw std::runtime_error("personal epoll failed");
+            }
         }
 
         ret = bool(nfds);
@@ -148,7 +152,7 @@ void SocketBase::bind(const std::string & ip, uint16_t port)
     if (::bind(m_fd, (sockaddr *)&addr, sizeof(addr)) < 0)
     {
         std::cerr << "bind failed : " << strerror(errno) << std::endl;
-        exit(1);
+        throw std::runtime_error("bind failed");
     }
 
     m_local_ip.set(ip, port);
@@ -163,7 +167,7 @@ void SocketBase::listen() const
     if (::listen(m_fd, 0) < 0)
     {
         std::cerr << "listen failed : " << strerror(errno) << std::endl;
-        exit(1);
+        throw std::runtime_error("listen failed");
     }
 }
 
@@ -180,7 +184,7 @@ NewConnection SocketBase::accept()
     if ((new_fd = ::accept(m_fd, (sockaddr *)&addr, &addr_size)) < 0)
     {
         std::cerr << "accept failed : " << strerror(errno) << std::endl;
-        exit(1);
+        throw std::runtime_error("accept failed");
     }
 
     return NewConnection(new_fd, addr);
