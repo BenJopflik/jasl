@@ -196,10 +196,13 @@ void Socket::close(bool clear_memory)
     std::cerr << "Closing " << socket_type_to_string(m_socket_type) << " socket #" << m_fd << std::endl;
 //#endif
 
+    if (m_poller)
+        remove_from_poller();
+
     int64_t fd = m_fd;
     ::close(m_fd);
-    m_fd = INVALID_FD;
 
+    m_fd = INVALID_FD;
     m_cb->on_close(this, fd);
     if (clear_memory)
         destroy();
