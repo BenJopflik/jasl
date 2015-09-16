@@ -190,6 +190,11 @@ void Socket::write()
     m_cb->on_write(this);
 }
 
+void Socket::accept()
+{
+    m_cb->on_accept(this, SocketBase::accept());
+}
+
 void Socket::close(bool clear_memory)
 {
 //#ifdef DEBUG

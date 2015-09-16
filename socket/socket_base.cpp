@@ -144,7 +144,7 @@ void SocketBase::bind(const std::string & ip, uint16_t port)
     addr.sin_family = m_family_type;
     addr.sin_port = htons(port);
 
-    if (!ip.empty())
+    if (!ip.empty()) // TODO change to "ADDR_ANY"
         fill_sin_addr(ip, addr);
     else
         addr.sin_addr.s_addr = INADDR_ANY;
@@ -155,7 +155,7 @@ void SocketBase::bind(const std::string & ip, uint16_t port)
         throw std::runtime_error("bind failed");
     }
 
-    m_local_ip.set(ip, port);
+    m_local_ip.set(ip.empty() ? "localhost" : ip, port);
 }
 
 void SocketBase::listen() const
@@ -164,7 +164,7 @@ void SocketBase::listen() const
     std::cerr << "Trying to listen" << std::endl;
 #endif
 
-    if (::listen(m_fd, 0) < 0)
+    if (::listen(m_fd, 9999) < 0)
     {
         std::cerr << "listen failed : " << strerror(errno) << std::endl;
         throw std::runtime_error("listen failed");
