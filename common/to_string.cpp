@@ -6,8 +6,6 @@
 #include <arpa/inet.h>
 #include <cstring>
 
-#include "common/event.hpp"
-
 std::string socket_type_to_string(uint64_t type)
 {
     switch (type)
@@ -52,47 +50,47 @@ std::string sockaddr_to_string(const sockaddr_in & addr)
     out += std::to_string(ntohs(addr.sin_port));
     return std::move(out);
 }
-
-std::string event_mask_to_string(uint64_t mask)
-{
-    std::string output;
-    if (mask & Event::READ)
-        output = "READ";
-
-    if (mask & Event::WRITE)
-    {
-        if (!output.empty())
-            output += "|";
-
-        output += "WRITE";
-    }
-
-    if (mask & Event::REARM)
-    {
-        if (!output.empty())
-            output += "|";
-
-        output += "REARM";
-    }
-
-    if (mask & Event::CLOSE)
-    {
-        if (!output.empty())
-            output += "|";
-
-        output += "CLOSE";
-    }
-
-    if (mask & Event::ERROR)
-    {
-        if (!output.empty())
-            output += "|";
-
-        output += "ERROR";
-    }
-
-    return std::move(output);
-}
+//
+//std::string event_mask_to_string(uint64_t mask)
+//{
+//    std::string output;
+//    if (mask & Event::READ)
+//        output = "READ";
+//
+//    if (mask & Event::WRITE)
+//    {
+//        if (!output.empty())
+//            output += "|";
+//
+//        output += "WRITE";
+//    }
+//
+//    if (mask & Event::REARM)
+//    {
+//        if (!output.empty())
+//            output += "|";
+//
+//        output += "REARM";
+//    }
+//
+//    if (mask & Event::CLOSE)
+//    {
+//        if (!output.empty())
+//            output += "|";
+//
+//        output += "CLOSE";
+//    }
+//
+//    if (mask & Event::ERROR)
+//    {
+//        if (!output.empty())
+//            output += "|";
+//
+//        output += "ERROR";
+//    }
+//
+//    return std::move(output);
+//}
 
 //sockaddr_in fd_to_sockaddr(int64_t fd)
 //{

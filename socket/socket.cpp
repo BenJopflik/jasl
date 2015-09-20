@@ -7,6 +7,7 @@
 #include <netinet/tcp.h>
 #include "poller/poller.hpp"
 #include "common/to_string.hpp"
+#include "common/new_connection.hpp"
 
 //http://kovyrin.net/2006/04/13/epoll-asynchronous-network-programming/
 //http://stackoverflow.com/questions/3192940/best-socket-options-for-client-and-sever-that-continuously-transfer-data
@@ -18,28 +19,31 @@ Socket::Socket()
 
 Socket::~Socket()
 {
+    ::close(m_fd);
+    std::cerr << "~Socket " << m_fd << std::endl;
 }
 
 void Socket::add_to_poller(uint64_t mask, Poller * poller)
 {
+    bool new_poller = poller && poller != m_poller;
     if (poller)
     {
         if (poller != m_poller)
         {
             if (m_poller)
-                m_poller->erase(m_fd);
+                m_poller->remove_socket(this);
         }
 
         m_poller = poller;
     }
 
     if (m_poller)
-        m_poller->update(m_fd, Action(mask, 0, uint64_t(this)));
+        m_poller->update_socket(this, mask, new_poller);
 }
 
 void Socket::remove_from_poller()
 {
-    m_poller->erase(m_fd);
+    m_poller->remove_socket(this);
     m_poller = nullptr;
 }
 
@@ -157,6 +161,16 @@ void Socket::operation_timeout() const
 //    const uint64_t m_step {0};
 }
 
+void Socket::set_rcv_buffer(int size) const
+{
+    ::setsockopt(m_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+}
+
+void Socket::set_snd_buffer(int size) const
+{
+    ::setsockopt(m_fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+}
+
 std::string Socket::get_last_error() const
 {
     std::string output;
@@ -182,30 +196,60 @@ Poller * Socket::get_poller() const
 // callbacks
 void Socket::read()
 {
-    m_cb->on_read(this);
+    if (m_state == CONNECTING)
+    {
+        m_state = ACTIVE;
+//        m_cb->on_connected(this);
+    }
+
+    if (m_state == ACTIVE)
+        m_cb->on_read(this);
 }
 
 void Socket::write()
 {
-    m_cb->on_write(this);
+    if (m_state == CONNECTING)
+    {
+        m_state = ACTIVE;
+//        m_cb->on_connected(this);
+    }
+
+    if (m_state == ACTIVE)
+        m_cb->on_write(this);
+}
+
+void Socket::accept()
+{
+    NewConnection connection;
+    for (;;)
+    {
+        connection = SocketBase::accept();
+        if (connection.fd == -1)
+            return;
+        m_cb->on_accept(this, connection);
+    }
 }
 
 void Socket::close(bool clear_memory)
 {
-//#ifdef DEBUG
-    std::cerr << "Closing " << socket_type_to_string(m_socket_type) << " socket #" << m_fd << std::endl;
-//#endif
+    if (m_state != CLOSED)
+    {
+        //#ifdef DEBUG
+        std::cerr << "Closing " << socket_type_to_string(m_socket_type) << " socket #" << m_fd << std::endl;
+        //#endif
 
-    if (m_poller)
-        remove_from_poller();
+        int64_t fd = m_fd;
 
-    int64_t fd = m_fd;
-    ::close(m_fd);
+        if (m_poller)
+            remove_from_poller();
 
-    m_fd = INVALID_FD;
-    m_cb->on_close(this, fd);
-    if (clear_memory)
-        destroy();
+//        m_fd = INVALID_FD;
+        m_cb->on_close(this, fd);
+        //    if (clear_memory)
+        //        destroy();
+
+        m_state = CLOSED;
+    }
 }
 
 void Socket::error()

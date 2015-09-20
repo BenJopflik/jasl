@@ -127,7 +127,6 @@ void SocketBase::connect(const sockaddr_in & saddr)
         if (errno != EINPROGRESS || !personal_poll(m_fd, EPOLLOUT, 1000))
             throw std::runtime_error(std::string("connection failed: ").append(strerror(errno)));
     }
-
 }
 
 // TODO add support for AF_LOOPBACK etc.
@@ -144,7 +143,7 @@ void SocketBase::bind(const std::string & ip, uint16_t port)
     addr.sin_family = m_family_type;
     addr.sin_port = htons(port);
 
-    if (!ip.empty())
+    if (!ip.empty()) // TODO change to "ADDR_ANY"
         fill_sin_addr(ip, addr);
     else
         addr.sin_addr.s_addr = INADDR_ANY;
@@ -155,7 +154,7 @@ void SocketBase::bind(const std::string & ip, uint16_t port)
         throw std::runtime_error("bind failed");
     }
 
-    m_local_ip.set(ip, port);
+    m_local_ip.set(ip.empty() ? "localhost" : ip, port);
 }
 
 void SocketBase::listen() const
@@ -164,7 +163,7 @@ void SocketBase::listen() const
     std::cerr << "Trying to listen" << std::endl;
 #endif
 
-    if (::listen(m_fd, 0) < 0)
+    if (::listen(m_fd, 99999) < 0)
     {
         std::cerr << "listen failed : " << strerror(errno) << std::endl;
         throw std::runtime_error("listen failed");
@@ -184,8 +183,11 @@ NewConnection SocketBase::accept()
     if ((new_fd = ::accept(m_fd, (sockaddr *)&addr, &addr_size)) < 0)
     {
         std::cerr << "accept failed : " << strerror(errno) << std::endl;
-        throw std::runtime_error("accept failed");
+        return NewConnection(new_fd, addr);
+//        throw std::runtime_error("accept failed");
     }
+
+    std::cerr << "New connection : " << new_fd << std::endl;
 
     return NewConnection(new_fd, addr);
 }
