@@ -127,7 +127,6 @@ void SocketBase::connect(const sockaddr_in & saddr)
         if (errno != EINPROGRESS || !personal_poll(m_fd, EPOLLOUT, 1000))
             throw std::runtime_error(std::string("connection failed: ").append(strerror(errno)));
     }
-
 }
 
 // TODO add support for AF_LOOPBACK etc.
@@ -164,7 +163,7 @@ void SocketBase::listen() const
     std::cerr << "Trying to listen" << std::endl;
 #endif
 
-    if (::listen(m_fd, 9999) < 0)
+    if (::listen(m_fd, 99999) < 0)
     {
         std::cerr << "listen failed : " << strerror(errno) << std::endl;
         throw std::runtime_error("listen failed");
@@ -184,8 +183,11 @@ NewConnection SocketBase::accept()
     if ((new_fd = ::accept(m_fd, (sockaddr *)&addr, &addr_size)) < 0)
     {
         std::cerr << "accept failed : " << strerror(errno) << std::endl;
-        throw std::runtime_error("accept failed");
+        return NewConnection(new_fd, addr);
+//        throw std::runtime_error("accept failed");
     }
+
+    std::cerr << "New connection : " << new_fd << std::endl;
 
     return NewConnection(new_fd, addr);
 }

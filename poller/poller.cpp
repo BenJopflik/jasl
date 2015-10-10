@@ -6,92 +6,103 @@
 #include "socket/socket.hpp"
 #include "poller/poller.hpp"
 
-
-Poller::Poller(const Params & params) : m_params(params), m_events(1000), m_updates(1000)
+Poller::Poller()
 {
     m_epoll_fd = epoll_create1(0);
-    m_epoll_events.reset(new epoll_event[m_params.queue_size]);
-    m_epoll_events_buffer_size = sizeof(epoll_event) * m_params.queue_size;
-
-    m_stop_fd = eventfd(0, 0);
+    m_epoll_events.resize(MAX_NUMBER_OF_EVENTS);
+    m_signal_fd = eventfd(0, 0);
 
     epoll_event event;
     event.events = EPOLLIN | EPOLLONESHOT | EPOLLHUP | EPOLLRDHUP;
-    event.data.u64 = m_stop_fd;
+    event.data.u64 = m_signal_fd;
 
-    epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, m_stop_fd, &event);
-    m_active_sockets.insert(std::make_pair(m_stop_fd, Action(event.events, 0, 0)));
+    epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, m_signal_fd, &event);
 }
 
 Poller::~Poller()
 {
+    ::close(m_signal_fd);
     ::close(m_epoll_fd);
 }
 
-void Poller::erase(uint64_t fd)
+void Poller::add_to_scheduler(Socket * socket, uint64_t action, uint64_t timeout)
 {
-    epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
-    update(fd, Action(Action::DELETE_MASK, 0, 0));
+    auto iter = m_sockets.find(socket->get_fd());
+
+    if (action & EPOLLIN)
+        iter->second.read_timeout = m_timer.milliseconds_from_epoch() + timeout;
+
+    if (action & EPOLLOUT)
+        iter->second.write_timeout = m_timer.milliseconds_from_epoch() + timeout;
+
+    m_scheduler.add_event(iter->second.get_nearest_timeout(), EventPayload(iter->second.socket->get_fd()));
 }
 
-bool Poller::update(int64_t fd, const Action & action)
+void Poller::update_socket(Socket * socket, uint64_t action, bool add, uint64_t timeout)
 {
-    return m_updates.push(std::make_pair(fd, action));
+    update_socket(socket, action, add);
+    std::lock_guard<decltype(m_lock)> lock(m_lock);
+    add_to_scheduler(socket, action, timeout);
 }
 
-void Poller::update_()
+void Poller::update_socket(Socket * socket, uint64_t action, bool add)
 {
-    std::pair<int64_t, Action> update;
+    epoll_event event;
+    event.events = action | EPOLLHUP | EPOLLRDHUP;
+    event.data.u64 = socket->get_fd();
 
-    while (m_updates.pop(update))
+#ifdef DEBUG
     {
-        auto active_socket = m_active_sockets.find(update.first);
-
-        if (update.second.mask == Action::DELETE_MASK)
-        {
-            m_active_sockets.erase(update.first);
-            continue;
-        }
-
-        epoll_event event;
-        event.events = update.second.mask | EPOLLHUP | EPOLLRDHUP;
-        event.data.u64 = update.first;
-
-        if (active_socket == m_active_sockets.end())
-        {
-            epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, update.first, &event);
-            m_active_sockets.insert(std::make_pair(update.first, update.second));
-        }
-        else
-        {
-            epoll_ctl(m_epoll_fd, EPOLL_CTL_MOD, update.first, &event);
-            active_socket->second = update.second;
-        }
+        std::lock_guard<decltype(m_lock)> lock(m_lock);
+        auto iter = m_sockets.find(socket->get_fd());
+        const auto END = m_sockets.end();
+        if ((add && iter != END) || (!add && iter == END))
+            assert(false && "invalid operation");
     }
+#endif
+
+    if (add)
+    {
+        std::lock_guard<decltype(m_lock)> lock(m_lock);
+        epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, event.data.u64, &event);
+        m_sockets.insert(std::make_pair(socket->get_fd(), SocketContext(std::shared_ptr<Socket>(socket))));
+        socket->attached_to_poller(this);
+        add_to_scheduler(socket, action, DEFAULT_TIMEOUT_MS);
+        return;
+    }
+
+    std::lock_guard<decltype(m_lock)> lock(m_lock);
+    epoll_ctl(m_epoll_fd, EPOLL_CTL_MOD, socket->get_fd(), &event);
+    add_to_scheduler(socket, action, DEFAULT_TIMEOUT_MS);
 }
 
-//void Poller::add_delayed(const TimerEvent & event)
-//{
-//    m_delyed_actions.insert(event);
-//}
 
-void Poller::stop()
+void Poller::remove_socket(Socket * socket)
 {
-    eventfd_write(m_stop_fd, uint64_t(0x0abcdef0));
+    std::lock_guard<decltype(m_lock)> lock(m_lock);
+    epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, socket->get_fd(), nullptr);
+    m_scheduler.delete_event(EventPayload(socket->get_fd()));
+    auto to_remove = m_sockets.find(socket->get_fd());
+    if (to_remove == m_sockets.end())
+        return;
+
+    m_removes.push_back(to_remove->second.socket);
+    signal(UPDATE);
 }
 
-bool Poller::poll()
+void Poller::poll()
 {
-//    auto now = m_timer.elapsed_milliseconds(true);
-//    while (!m_delyed_actions.empty() && m_delyed_actions.begin().check(now))
-//        m_delyed_actions.erase(m_delyed_actions.begin());
-
     // POLL
     int nfds = 0;
+    uint64_t epoll_wait_time = 0;
     for (;;)
     {
-        memset(m_epoll_events.get(), 0, m_epoll_events_buffer_size);
-        nfds = epoll_wait(m_epoll_fd, m_epoll_events.get(), m_params.queue_size, m_params.poll_interval);
+        memset(m_epoll_events.data(), 0, m_epoll_events.size() * sizeof(epoll_event));
+        epoll_wait_time = m_scheduler.ms_to_next_event();
+        if (epoll_wait_time == 0 || !m_removes.empty())
+            break;
+
+        nfds = epoll_wait(m_epoll_fd, m_epoll_events.data(), m_epoll_events.size(), epoll_wait_time);
         if (nfds < 0)
         {
             if (errno == EINTR)
@@ -104,81 +115,128 @@ bool Poller::poll()
         break;
     }
 
-    auto iter = m_active_sockets.begin();
+    std::cerr << nfds << std::endl;
 
-    for (int i = 0; i < nfds; ++i)
     {
-        std::cerr << "event on " << m_epoll_events[i].data.u64 << std::endl;
-        // process action
-        iter = m_active_sockets.find(m_epoll_events[i].data.u64);
-        if (iter == m_active_sockets.end())
+        std::lock_guard<decltype(m_lock)> lock(m_lock);
+
+        auto iter = m_sockets.begin();
+        for (int i = 0; i < nfds; ++i)
         {
-            std::cerr << m_epoll_events[i].data.u64 << " not found" << std::endl;
-            assert(false);
+            std::cerr << "event on " << m_epoll_events[i].data.u64 << std::endl;
+
+            if (m_epoll_events[i].data.u64 == m_signal_fd)
+            {
+                std::cerr << "SIGNAL" << std::endl;
+                eventfd_t value;
+                eventfd_read(m_signal_fd, &value);
+//XXX                PROCESS_SIGNAL
+//                    continue / break;
+                continue;
+            }
+
+            iter = m_sockets.find(m_epoll_events[i].data.u64);
+            if (iter == m_sockets.end())
+            {
+                std::cerr << m_epoll_events[i].data.u64 << " not found" << std::endl;
+                assert(false);
+            }
+
+            auto mask = m_epoll_events[i].events;
+
+            PollerEvent event(iter->second.socket);
+
+            if (mask & EPOLLIN)
+            {
+                iter->second.update_timeout(true);
+                event.action |= PollerEvent::READ;
+            }
+
+            if (mask & EPOLLOUT)
+            {
+                iter->second.update_timeout(false);
+                event.action |= PollerEvent::WRITE;
+            }
+
+            if (mask & (EPOLLHUP | EPOLLRDHUP | EPOLLERR))
+            {
+                m_scheduler.delete_event(iter->first);
+                m_sockets.erase(iter);
+                event.action = PollerEvent::CLOSE;
+            }
+
+            m_scheduler.add_event(iter->second.get_nearest_timeout(), iter->first);
+            m_out_events.insert(event);
         }
 
-        if (iter->first == m_stop_fd)
+        for (const auto & i : m_removes)
         {
-            Event event;
-            event.mask = Event::STOP;
-            m_events.push(event);
+            PollerEvent event(i);
+            auto output_iter = m_out_events.find(event);
+            if (output_iter != m_out_events.end())
+                m_out_events.erase(output_iter);
 
-            return false;
+            m_out_events.insert(PollerEvent(i, PollerEvent::CLOSE));
+
+            m_scheduler.delete_event(i->get_fd());
+
+            auto active_iter = m_sockets.find(i->get_fd());
+            if (active_iter != m_sockets.end())
+                m_sockets.erase(active_iter);
         }
 
-        auto mask = m_epoll_events[i].events;
+        m_removes.clear();
 
-        Event event;
-        event.fd = m_epoll_events[i].data.u64;
-        event.user_data = iter->second.user_data;
+        if (nfds == m_epoll_events.size())
+            m_epoll_events.resize(2 * m_epoll_events.size());
 
-        if (mask & EPOLLIN)
+        uint64_t current_time = m_timer.milliseconds_from_epoch();
+        EventPayload payload;
+        while (m_scheduler.get_next_event(payload, current_time))
         {
-            event.mask |= Event::READ | ((iter->second.mask & EPOLLONESHOT) ? Event::REARM : 0);
-        }
+            iter = m_sockets.find(payload.i64);
+            if (iter == m_sockets.end())
+                continue;
 
-        if (mask & EPOLLOUT)
-        {
-            event.mask |= Event::WRITE | ((iter->second.mask & EPOLLONESHOT) ? Event::REARM : 0);
-        }
+            auto timeout_type = iter->second.get_timeout_type(current_time);
+            if (!timeout_type)
+                continue;
 
-        if (mask & EPOLLERR)
-        {
-            event.mask = Event::ERROR;
-            mask |= EPOLLHUP;
-        }
+            auto out_event = m_out_events.find(PollerEvent(iter->second.socket));
+            if (out_event == m_out_events.end())
+            {
+                m_out_events.insert(PollerEvent(iter->second.socket, timeout_type));
+                continue;
+            }
 
-        if (mask & (EPOLLHUP | EPOLLRDHUP))
-        {
-            m_active_sockets.erase(iter);
-            event.mask |= Event::CLOSE;
-            event.mask &= ~Event::REARM;
-        }
+            uint64_t out_event_type = out_event->action;
+            if (out_event_type & PollerEvent::CLOSE)
+                continue;
 
-        if (event.mask && !m_events.push(event))
-        {
-            std::cerr << "Event queue is full!" << std::endl;
-//            update(iter->first, iter->second);
-        }
+            if (out_event_type & PollerEvent::READ && timeout_type & PollerEvent::TIMEOUT_READ)
+                timeout_type &= ~PollerEvent::TIMEOUT_READ;
 
+            if (out_event_type & PollerEvent::WRITE && timeout_type & PollerEvent::TIMEOUT_WRITE)
+                timeout_type &= ~PollerEvent::TIMEOUT_WRITE;
+
+            if (timeout_type)
+            {
+                PollerEvent modified_event = *out_event;
+                m_out_events.erase(out_event);
+                modified_event.action |= timeout_type;
+                m_out_events.insert(modified_event);
+            }
+        }
     }
-
-    update_();
-
-    return true;
 }
 
-bool Poller::get_event(Event & event)
-{
-    return m_events.pop(event);
-}
 
-std::unique_ptr<Worker> Poller::run_poll_in_thread()
+PollerEvent Poller::get_next_event()
 {
-    auto loop_function = [=](){while (poll()){}};
-    auto worker = Worker::create(2);
-    worker->add(loop_function);
-    worker->stop();
-    return worker;
+    if (m_out_events.empty())
+        return PollerEvent();
+    PollerEvent event = *m_out_events.begin();
+    m_out_events.erase(m_out_events.begin());
+    return event;
 }
 

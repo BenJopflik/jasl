@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include "poller/poller.hpp"
 
 TcpServer::TcpServer(uint64_t port)
 {
@@ -7,6 +8,7 @@ TcpServer::TcpServer(uint64_t port)
 
     create();
     set_reuseaddr(1);
+    set_reuseport(1);
     set_nonblock();
     try
     {

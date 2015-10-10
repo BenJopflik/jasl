@@ -7,6 +7,8 @@ TcpClient::TcpClient(const std::string & ip_addr, uint64_t port)
 
     create();
     set_reuseaddr(1);
+    set_snd_buffer(65536);
+    set_rcv_buffer(65536);
     set_nonblock();
     try
     {
@@ -27,6 +29,8 @@ TcpClient::TcpClient(const sockaddr_in & addr)
 
     create();
     set_reuseaddr(1);
+    set_snd_buffer(65536);
+    set_rcv_buffer(65536);
     set_nonblock();
     try
     {
@@ -44,6 +48,8 @@ TcpClient::TcpClient(const NewConnection & new_connection)
     m_family_type = AF_INET;
     m_socket_type = SOCK_STREAM;
     m_fd = new_connection.fd;
+    set_snd_buffer(65536);
+    set_rcv_buffer(65536);
     set_nonblock();
     // TODO feel other fields
 }

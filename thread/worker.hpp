@@ -36,6 +36,19 @@ public:
         return m_tasks.push(task);
     }
 
+    bool bind_to(uint64_t cpu_id)
+    {
+        cpu_set_t current_cpu_set;
+
+        CPU_ZERO(&current_cpu_set);
+
+        CPU_SET(cpu_id, &current_cpu_set);
+
+        int set_affinity_result = pthread_setaffinity_np(m_thread.native_handle(), sizeof(cpu_set_t), &current_cpu_set);
+
+        return !set_affinity_result;
+    }
+
 
 private:
     Worker(const uint64_t task_queue_size) : m_tasks(task_queue_size) {}

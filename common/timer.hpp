@@ -5,7 +5,7 @@
 class Timer
 {
 #define NOW std::chrono::high_resolution_clock::now()
-#define GET_TIME(type) \
+#define GET_TIME(type, from_epoch) \
     auto duration = NOW - ((from_epoch) ? decltype(m_start)() : m_start);\
     return std::chrono::duration_cast<std::chrono::type>(duration).count();
 
@@ -21,24 +21,46 @@ public:
         m_start = NOW;
     }
 
-    uint64_t elapsed_seconds(bool from_epoch = false) const
+    uint64_t elapsed_seconds() const
     {
-        GET_TIME(seconds)
+        GET_TIME(seconds, false)
     }
 
-    uint64_t elapsed_milliseconds(bool from_epoch = false) const
+    uint64_t elapsed_milliseconds() const
     {
-        GET_TIME(milliseconds)
+        GET_TIME(milliseconds, false)
     }
 
-    uint64_t elapsed_microseconds(bool from_epoch = false) const
+    uint64_t elapsed_microseconds() const
     {
-        GET_TIME(microseconds)
+        GET_TIME(microseconds, false)
     }
 
-    uint64_t elapsed_nanoseconds(bool from_epoch = false) const
+    uint64_t elapsed_nanoseconds() const
     {
-        GET_TIME(nanoseconds)
+        GET_TIME(nanoseconds, false)
+    }
+
+// from epoch
+
+    uint64_t seconds_from_epoch() const
+    {
+        GET_TIME(seconds, true)
+    }
+
+    uint64_t milliseconds_from_epoch() const
+    {
+        GET_TIME(milliseconds, true)
+    }
+
+    uint64_t microseconds_from_epoch() const
+    {
+        GET_TIME(microseconds, true)
+    }
+
+    uint64_t nanoseconds_from_epoch() const
+    {
+        GET_TIME(nanoseconds, true)
     }
 
 private:
