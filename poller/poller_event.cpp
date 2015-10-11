@@ -5,23 +5,23 @@ PollerEvent::PollerEvent()
 
 }
 
-PollerEvent::PollerEvent(std::shared_ptr<Socket> ptr) : ptr(ptr)
+PollerEvent::PollerEvent(const std::shared_ptr<Socket> & socket) : socket(socket)
 {
 
 }
 
-PollerEvent::PollerEvent(std::shared_ptr<Socket> ptr, uint64_t action) : ptr(ptr), action(action)
+PollerEvent::PollerEvent(const std::shared_ptr<Socket> & socket, uint64_t action) : socket(socket), action(action)
 {
 
 }
 
 uint64_t PollerEvent::hash() const
 {
-    return std::hash<decltype(ptr)>()(ptr);
+    return std::hash<decltype(socket)>()(socket);
 }
 
 bool PollerEvent::operator == (const PollerEvent & right) const
 {
-    return ptr == right.ptr;
+    return socket == right.socket;
 }
 

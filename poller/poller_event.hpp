@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "common/hashable.hpp"
-#include "common/hasher.hpp"
+#include "../common/hashable.hpp" // XXX
+#include "../common/hasher.hpp"
 
 class Socket;
 
@@ -23,14 +23,15 @@ public:
 
 public:
     PollerEvent();
-    PollerEvent(std::shared_ptr<Socket> ptr);
-    PollerEvent(std::shared_ptr<Socket> ptr, uint64_t action);
+    PollerEvent(const std::shared_ptr<Socket> & socket);
+    PollerEvent(const std::shared_ptr<Socket> & socket, uint64_t action);
 
+    operator bool () const {return socket.get() != nullptr;}
     uint64_t hash() const override;
     bool operator == (const PollerEvent & right) const override;
 
 public:
-    std::shared_ptr<Socket> ptr    {nullptr};
+    std::shared_ptr<Socket> socket {nullptr};
     uint64_t                action {0};
 
 };
