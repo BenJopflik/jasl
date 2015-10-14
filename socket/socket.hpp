@@ -1,56 +1,39 @@
 #pragma once
 
-#include <iostream>
-#include <errno.h>
-#include <vector>
-
-#include <chrono>
-#include <memory>
-#include <cassert>
-#include <atomic>
-
-#include "socket_base.hpp"
-#include "socket_callbacks.hpp"
-#include "poller/action.hpp"
 #include <memory>
 
+#include "socket_info.hpp"
+#include "common/file_descriptor.hpp"
+
+class sockaddr_in;
+class SocketCallbacks;
 class Poller;
 
-class Socket : public SocketBase , public std::enable_shared_from_this<Socket>
+class Socket
 {
+public:
+    enum State
+    {
+        INVALID = 0,
+        CREATED,
+        CONNECTING,
+        LISTENING,
+        READY,
 
-enum State
-{
-    CLOSED = 1,
-    CONNECTING,
-    ACTIVE,
-
-};
+        NUM_OF_STATES
+    };
 
 public:
     virtual ~Socket();
-    virtual void read();
-    virtual void write();
-    virtual void error();
-    virtual void rearm();
-    virtual void accept();
-    virtual void close(bool clear_memory = true) override;
 
-    virtual uint64_t read(uint8_t * data, uint64_t data_size, bool & eof);
-    virtual uint64_t write(const uint8_t * data, uint64_t data_size);
+    ssize_t write(const uint8_t * data, const ssize_t data_size);
+    ssize_t read (      uint8_t * data, const ssize_t data_size, bool & eof);
 
-//    virtual uint64_t receive_from(uint8_t * data, uint64_t data_size, sockaddr_in * from = nullptr);
-//    virtual uint64_t send_to(uint8_t * data, uint64_t data_size, sockaddr_in * to = nullptr):
+    uint64_t get_current_state() const {return m_info.state;}
+    int64_t  get_fd()            const {return *m_fd;}
 
-    void attached_to_poller(Poller * poller) {m_poller = poller;}
-
-    void add_to_poller(uint64_t mask, Poller * = nullptr);
+    void attach_to_poller(const std::shared_ptr<Poller> & poller);
     void remove_from_poller();
-
-    int64_t get_fd() const {return m_fd;}
-    std::string get_last_error() const;
-    std::string get_remote_addr() const;
-    Poller * get_poller() const;
 
     template<class T, typename ... Args>
     void set_callbacks(Args... args)
@@ -58,26 +41,41 @@ public:
         m_cb.reset(new T(std::forward<Args>(args)...));
     }
 
-
-protected:
-    Socket();
-    virtual void operation_timeout() const;
-
 // options
     void set_reuseaddr(int val = 1) const;
     void set_reuseport(int val = 1) const;
     void set_keepalive(int val = 1) const;
-    void set_nodelay(int val = 1) const;
-    void set_nonblock() const;
-    void set_rcv_buffer(int) const;
-    void set_snd_buffer(int) const;
+    void set_nodelay  (int val = 1) const;
+    void set_nonblock ()            const;
+
+    void set_rcvbuf(int) const;
+    void set_sndbuf(int) const;
+
+// callbacks
+    virtual void read ();
+    virtual void write();
+    virtual void error();
+    virtual void close();
+// ----------------------
 
 protected:
-    Poller * m_poller {nullptr};
-    std::unique_ptr<SocketCallbacks> m_cb;
-    uint64_t m_state {CONNECTING};
+    Socket(const int64_t type, const int64_t family);
+
+    void bind   (const std::string & ip, const uint16_t port);
+    void connect(const std::string & ip, const uint16_t port);
+    void listen (const uint64_t backlog = 1000) const;
+// TODO accept
+
+    virtual std::shared_ptr<Socket> get_ptr() = 0;
 
 private:
-    void destroy();
+    sockaddr_in get_saddr(const char * ip = nullptr, const uint16_t port = 0);
+
+private:
+    std::shared_ptr<Poller>          m_poller;
+    std::shared_ptr<FileDescriptor>  m_fd;
+    std::unique_ptr<SocketCallbacks> m_cb;
+
+    SocketInfo m_info; // XXX change to shared_ptr?
 
 };

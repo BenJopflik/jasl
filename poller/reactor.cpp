@@ -4,58 +4,47 @@
 
 Reactor::Reactor()
 {
-
+    m_poller.reset(new Poller());
 }
-
 
 void Reactor::run()
 {
     while (!m_stop)
     {
-        std::cerr << "poll"  << std::endl;
-        m_poller.poll();
+        m_poller->poll();
 
         for (;;)
         {
-            auto event = m_poller.get_next_event();
-            if (!event.ptr)
+            auto event = m_poller->get_next_event();
+            if (!event.action)
                 break;
 
-//            if (event.action & (PollerEvent::TIMEOUT_READ | PollerEvent::TIMEOUT_WRITE)
-//            {
-//                event.ptr->timeout(event.action & PollerEvent::TIMEOUT_READ,
-//                                   event.action & PollerEvent::TIMEOUT_WRITE);
-//            }
-
             if (event.action & PollerEvent::READ)
-                event.ptr->read();
+                event.socket->read();
 
             if (event.action & PollerEvent::WRITE)
-                event.ptr->write();
+                event.socket->write();
 
             if (event.action & PollerEvent::CLOSE)
-                event.ptr->close();
-
+                event.socket->close();
         }
     }
 }
 
-
-void Reactor::stop()
+void Reactor::stop() const
 {
-    m_poller.signal(Poller::Signal::STOP);
+    m_poller->signal(Poller::Signal::STOP);
     m_stop = true;
 }
 
-void Reactor::update_socket(Socket * socket, uint64_t action, bool add)
+void Reactor::signal(const Poller::Signal & signal) const
 {
-    m_poller.update_socket(socket, action, add);
-//    m_poller.signal(Poller::Signal::UPDATE);
+    m_poller->signal(signal);
 }
 
-void Reactor::signal(Poller::Signal signal)
+void Reactor::update_socket(const std::shared_ptr<Socket> & socket, uint64_t action)
 {
-    m_poller.signal(signal);
+    m_poller->update_socket(socket, action);
 }
 
 // -------------

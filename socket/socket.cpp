@@ -1,259 +1,125 @@
-#include "socket.hpp"
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <sys/epoll.h>
-#include <stdexcept>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <fcntl.h>
+#include <iostream>
+
+#include "socket/socket.hpp"
+#include "socket/socket_callbacks.hpp"
 #include "poller/poller.hpp"
-#include "common/to_string.hpp"
-#include "common/new_connection.hpp"
 
-//http://kovyrin.net/2006/04/13/epoll-asynchronous-network-programming/
-//http://stackoverflow.com/questions/3192940/best-socket-options-for-client-and-sever-that-continuously-transfer-data
-
-Socket::Socket()
+Socket::Socket(const int64_t type, const int64_t family)
 {
+    m_info.type   = type;
+    m_info.family = family;
+
+    m_fd = FileDescriptor::create(::socket(family, type, 0));
+    m_info.state = CREATED;
     m_cb.reset(new SocketCallbacks());
+#ifdef DEBUG
+    std::cerr << "New socket #" << *m_fd << std::endl;
+#endif
 }
 
 Socket::~Socket()
 {
-    ::close(m_fd);
-    std::cerr << "~Socket " << m_fd << std::endl;
+#ifdef DEBUG
+    std::cerr << "Delete socket " << *m_fd << std::endl;
+#endif
 }
 
-void Socket::add_to_poller(uint64_t mask, Poller * poller)
+ssize_t Socket::write(const uint8_t * data, const ssize_t data_size)
 {
-    bool new_poller = poller && poller != m_poller;
-    if (poller)
-    {
-        if (poller != m_poller)
-        {
-            if (m_poller)
-                m_poller->remove_socket(this);
-        }
+    return m_fd->write(data, data_size);
+}
 
-        m_poller = poller;
-    }
+ssize_t Socket::read(uint8_t * data, const ssize_t data_size, bool & eof)
+{
+    return m_fd->read(data, data_size, eof);
+}
 
-    if (m_poller)
-        m_poller->update_socket(this, mask, new_poller);
+void Socket::attach_to_poller(const std::shared_ptr<Poller> & poller)
+{
+    if (!poller || m_poller == poller)
+        return;
+
+    remove_from_poller();
+    m_poller = poller;
 }
 
 void Socket::remove_from_poller()
 {
-    m_poller->remove_socket(this);
-    m_poller = nullptr;
+    if (!m_poller)
+        return;
+
+    m_poller->remove_socket(get_ptr());
+    m_poller.reset();
 }
 
-uint64_t Socket::read(uint8_t * data, uint64_t data_size, bool & eof)
+void Socket::bind(const std::string & ip, const uint16_t port)
 {
-    assert(data && data_size && "invalid input args");
+#ifdef DEBUG
+    std::cerr << "Trying to bind to " << ip << ":" << port << std::endl;
+#endif
+    sockaddr_in saddr = get_saddr(ip.empty() ? nullptr : ip.c_str(), port);
 
-    int64_t  nbytes = 0;
-    uint64_t offset = 0;
+    if (::bind(*m_fd, (sockaddr *)&saddr, sizeof(saddr)) < 0)
+        throw std::runtime_error(std::string("bind failed: ").append(strerror(errno)));
 
-    eof = false;
-
-    while ((nbytes = ::read(m_fd, data, data_size - offset)))
-    {
-        if (nbytes > 0)
-        {
-            offset += nbytes;
-            if (offset >= data_size)
-                break;
-        }
-        else if (nbytes == 0)
-        {
-            // eof
-            eof = true;
-            break;
-        }
-        else
-        {
-            if (errno == EINTR)
-                continue;
-
-            if (errno != EWOULDBLOCK && errno != EAGAIN)
-            {
-                std::cerr << "read failed : " << strerror(errno) << std::endl;
-                throw std::runtime_error(strerror(errno));
-            }
-
-            break;
-        }
-    }
-
-    return offset;
+    // TODO fill m_info.local_addr
 }
 
-
-uint64_t Socket::write(const uint8_t * data, uint64_t data_size)
+void Socket::connect(const std::string & ip, const uint16_t port)
 {
-    assert(data && data_size && "invalid input args");
+#ifdef DEBUG
+    std::cerr << "Trying to connect to " << ip << ":" << port << std::endl;
+#endif
+    m_info.state = CONNECTING;
 
-    uint64_t offset = 0;
-    int nbytes = 0;
+    sockaddr_in saddr = get_saddr(ip.c_str(), port);
 
-    while ((nbytes = ::write(m_fd, data + offset, data_size - offset)))
-    {
-        if (nbytes < 0)
-        {
-            if (errno != EWOULDBLOCK && errno != EAGAIN)
-            {
-                std::cerr << "write failed : " << strerror(errno) << std::endl;
-                throw std::runtime_error(strerror(errno));
-            }
-            else
-            {
-                break;
-            }
-        }
-        else
-        {
-            offset += nbytes;
-            if (offset >= data_size)
-                break;
-        }
-    }
-    return offset;
+    if (::connect(*m_fd, (sockaddr *)&saddr, sizeof(saddr)) < 0)
+        throw std::runtime_error(std::string("connect failed: ").append(strerror(errno)));
+    m_info.state = READY;
 }
 
-// TODO add rcvbuf sndbuf linger options
-
-void Socket::set_reuseaddr(int val) const
+void Socket::listen(const uint64_t backlog) const
 {
-    ::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+#ifdef DEBUG
+    std::cerr << "Trying to listen" << std::endl;
+#endif
+
+    if (::listen(*m_fd, backlog) < 0)
+        throw std::runtime_error(std::string("listen failed: ").append(strerror(errno)));
 }
 
-void Socket::set_reuseport(int val) const
-{
-    ::setsockopt(m_fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
-}
+// XXX callbacks
 
-void Socket::set_keepalive(int val) const
-{
-    ::setsockopt(m_fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
-}
-
-void Socket::set_nodelay(int val) const
-{
-    ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
-}
-
-void Socket::set_nonblock() const
-{
-    // nonblock
-    int flags = ::fcntl(m_fd, F_GETFL, 0);
-    flags |= O_NONBLOCK;
-    ::fcntl(m_fd, F_SETFL, flags);
-
-    // close-on-exec
-    flags = ::fcntl(m_fd, F_GETFD, 0);
-    flags |= FD_CLOEXEC;
-    ::fcntl(m_fd, F_SETFD, flags);
-}
-
-void Socket::operation_timeout() const
-{
-    // TODO check m_status and return error
-//    const uint64_t m_step {0};
-}
-
-void Socket::set_rcv_buffer(int size) const
-{
-    ::setsockopt(m_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-}
-
-void Socket::set_snd_buffer(int size) const
-{
-    ::setsockopt(m_fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
-}
-
-std::string Socket::get_last_error() const
-{
-    std::string output;
-    int val = 0;
-    socklen_t len = sizeof(val);
-    ::getsockopt(m_fd, SOL_SOCKET, SO_ERROR, &val, &len);
-    output = strerror(val);
-
-    return std::move(output);
-}
-
-std::string Socket::get_remote_addr() const
-{
-    return std::string(m_remote_ip.full_addr);
-}
-
-Poller * Socket::get_poller() const
-{
-    return m_poller;
-}
-
-
-// callbacks
 void Socket::read()
 {
-    if (m_state == CONNECTING)
-    {
-        m_state = ACTIVE;
-//        m_cb->on_connected(this);
-    }
-
-    if (m_state == ACTIVE)
+    if (m_info.state == READY)
         m_cb->on_read(this);
 }
 
 void Socket::write()
 {
-    if (m_state == CONNECTING)
-    {
-        m_state = ACTIVE;
-//        m_cb->on_connected(this);
-    }
-
-    if (m_state == ACTIVE)
+    if (m_info.state == READY)
         m_cb->on_write(this);
 }
 
-void Socket::accept()
+void Socket::close()
 {
-    NewConnection connection;
-    for (;;)
+    if (m_info.state != INVALID)
     {
-        connection = SocketBase::accept();
-        if (connection.fd == -1)
-            return;
-        m_cb->on_accept(this, connection);
-    }
-}
-
-void Socket::accept()
-{
-    m_cb->on_accept(this, SocketBase::accept());
-}
-
-void Socket::close(bool clear_memory)
-{
-    if (m_state != CLOSED)
-    {
-        //#ifdef DEBUG
-        std::cerr << "Closing " << socket_type_to_string(m_socket_type) << " socket #" << m_fd << std::endl;
-        //#endif
-
-        int64_t fd = m_fd;
-
-        if (m_poller)
-            remove_from_poller();
-
-//        m_fd = INVALID_FD;
-        m_cb->on_close(this, fd);
-        //    if (clear_memory)
-        //        destroy();
-
-        m_state = CLOSED;
+#ifdef DEBUG
+    std::cerr << "Closing socket #" << *m_fd << std::endl;
+#endif
+        remove_from_poller();
+        m_cb->on_close(this);
+        m_info.state = INVALID;
     }
 }
 
@@ -262,15 +128,58 @@ void Socket::error()
     m_cb->on_error(this);
 }
 
-void Socket::rearm()
-{
-    m_cb->on_rearm(this);
-}
-// callbacks
+// XXX options
 
-void Socket::destroy()
+void Socket::set_reuseaddr(int val) const
 {
-    delete this;
+    ::setsockopt(*m_fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 }
 
+void Socket::set_reuseport(int val) const
+{
+    ::setsockopt(*m_fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+}
 
+void Socket::set_keepalive(int val) const
+{
+    ::setsockopt(*m_fd,SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
+}
+
+void Socket::set_nodelay(int val) const
+{
+    ::setsockopt(*m_fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
+}
+
+void Socket::set_nonblock() const
+{
+    int flags = ::fcntl(*m_fd, F_GETFL, 0);
+    flags |= O_NONBLOCK;
+    ::fcntl(*m_fd, F_SETFL, flags);
+}
+
+void Socket::set_rcvbuf(int size) const
+{
+    ::setsockopt(*m_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+}
+
+void Socket::set_sndbuf(int size) const
+{
+    ::setsockopt(*m_fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+}
+
+// XXX support ----------------------------------------------------------------------------------------------------
+sockaddr_in Socket::get_saddr(const char * ip, const uint16_t port)
+{
+    sockaddr_in saddr;
+    ::memset(&saddr, 0, sizeof(saddr));
+
+    saddr.sin_family = m_info.family;
+    saddr.sin_port   = htons(port);
+
+    if (ip == nullptr)
+        saddr.sin_addr.s_addr = INADDR_ANY;
+    else if (::inet_pton(saddr.sin_family, ip, &saddr.sin_addr) <= 0)
+        throw std::runtime_error(std::string("inet_pton failed: ").append(strerror(errno)));
+
+    return std::move(saddr);
+}
