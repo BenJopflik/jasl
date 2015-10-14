@@ -26,7 +26,7 @@ private:
     BitSet & m_bitset;
     const uint64_t m_index {0};
 
-};
+}; // class Bit
 
 class BitSet
 {
@@ -60,4 +60,4 @@ private:
     uint64_t m_size {0};
     uint64_t m_number_of_bits {0};
 
-};
+}; // class BitSet

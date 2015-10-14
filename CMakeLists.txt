@@ -4,6 +4,8 @@ set (TARGET jasl)
 
 project (${TARGET})
 
+#add_definitions(-DDEBUG)
+
 include_directories ("${PROJECT_SOURCE_DIR}")
 set (CMAKE_INCLUDE_PATH "/usr/local/include")
 set (CMAKE_LIBRARY_PATH "/usr/local/lib")

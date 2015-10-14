@@ -5,14 +5,16 @@
 #include "socket/socket.hpp"
 #include "socket/tcp/tcp.hpp"
 
-
-class TcpClient : public Tcp
+class TcpServer : public Tcp
 {
 public:
     static std::shared_ptr<Socket> create(const Tcp::Params & params);
-    ~TcpClient();
+    ~TcpServer();
+
+    void read () override;
+    void write() override;
 
 protected:
-    TcpClient(const Tcp::Params & params);
+    TcpServer(const Tcp::Params & params);
 
-}; // class TcpClient
+}; // class TcpServer

@@ -1,4 +1,4 @@
-#include "poller_event.hpp"
+#include "poller/poller_event.hpp"
 
 PollerEvent::PollerEvent()
 {
@@ -10,7 +10,15 @@ PollerEvent::PollerEvent(const std::shared_ptr<Socket> & socket) : socket(socket
 
 }
 
-PollerEvent::PollerEvent(const std::shared_ptr<Socket> & socket, uint64_t action) : socket(socket), action(action)
+PollerEvent::PollerEvent(const std::shared_ptr<Socket> & socket,
+                         const uint64_t & action)                : socket(socket), action(action)
+{
+
+}
+
+PollerEvent::PollerEvent(const std::shared_ptr<Socket> & socket,
+                         const uint64_t & action,
+                         const uint64_t & close_reason)          : socket(socket), action(action), close_reason(close_reason)
 {
 
 }

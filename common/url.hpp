@@ -43,6 +43,4 @@ private:
 
     bool m_valid {false};
 
-};
-
-
+}; // class Url

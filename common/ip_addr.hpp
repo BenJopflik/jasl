@@ -9,6 +9,7 @@
 struct IpAddr
 {
 public:
+    IpAddr(const std::string & host, const uint16_t port = 0);
     static sockaddr_in get_sockaddr_in(const StringWrapper & ip, uint16_t port);
 
     void set(const std::string & host, uint16_t port);
@@ -20,6 +21,5 @@ public:
     std::string ip        {""};
     uint16_t    port      {0};
     sockaddr_in addr;
-};
 
-
+}; // class IpAddr

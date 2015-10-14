@@ -9,7 +9,6 @@ class Timer
     auto duration = NOW - ((from_epoch) ? decltype(m_start)() : m_start);\
     return std::chrono::duration_cast<std::chrono::type>(duration).count();
 
-
 public:
     Timer(bool reset_start = false)
     {
@@ -70,7 +69,4 @@ private:
 private:
     std::chrono::high_resolution_clock::time_point m_start;
 
-};
-
-
-
+}; // class Timer

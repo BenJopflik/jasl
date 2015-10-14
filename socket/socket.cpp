@@ -10,14 +10,16 @@
 #include "socket/socket.hpp"
 #include "socket/socket_callbacks.hpp"
 #include "poller/poller.hpp"
+#include "common/new_connection.hpp"
+#include "common/timer.hpp"
 
-Socket::Socket(const int64_t type, const int64_t family)
+Socket::Socket(const int64_t type, const int64_t family, const int64_t fd)
 {
     m_info.type   = type;
     m_info.family = family;
 
-    m_fd = FileDescriptor::create(::socket(family, type, 0));
-    m_info.state = CREATED;
+    m_fd = FileDescriptor::create((fd == FileDescriptor::INVALID_FD) ? ::socket(family, type, 0) : fd);
+    m_info.state = (fd == FileDescriptor::INVALID_FD) ? CREATED : READY;
     m_cb.reset(new SocketCallbacks());
 #ifdef DEBUG
     std::cerr << "New socket #" << *m_fd << std::endl;
@@ -36,6 +38,11 @@ ssize_t Socket::write(const uint8_t * data, const ssize_t data_size)
     return m_fd->write(data, data_size);
 }
 
+ssize_t Socket::read(uint8_t * data, const ssize_t data_size)
+{
+    return m_fd->read(data, data_size);
+}
+
 ssize_t Socket::read(uint8_t * data, const ssize_t data_size, bool & eof)
 {
     return m_fd->read(data, data_size, eof);
@@ -43,23 +50,38 @@ ssize_t Socket::read(uint8_t * data, const ssize_t data_size, bool & eof)
 
 void Socket::attach_to_poller(const std::shared_ptr<Poller> & poller)
 {
-    if (!poller || m_poller == poller)
+    if (!poller || m_poller.lock() == poller)
         return;
 
     remove_from_poller();
+
     m_poller = poller;
 }
 
 void Socket::remove_from_poller()
 {
-    if (!m_poller)
+    auto shared_poller = m_poller.lock();
+    if (!shared_poller)
         return;
 
-    m_poller->remove_socket(get_ptr());
+    shared_poller->remove_socket(get_ptr());
     m_poller.reset();
 }
 
-void Socket::bind(const std::string & ip, const uint16_t port)
+void Socket::update_poll_mask(const uint64_t & mask, uint64_t timeout)
+{
+    auto shared_poller = m_poller.lock();
+    if (!shared_poller)
+        throw std::runtime_error("poller is not available");
+    shared_poller->update_socket(get_ptr(), mask, timeout);
+}
+
+std::shared_ptr<Poller> Socket::get_poller() const
+{
+    return m_poller.lock();
+}
+
+void Socket::bind(const std::string & ip, const uint16_t port) const
 {
 #ifdef DEBUG
     std::cerr << "Trying to bind to " << ip << ":" << port << std::endl;
@@ -72,7 +94,7 @@ void Socket::bind(const std::string & ip, const uint16_t port)
     // TODO fill m_info.local_addr
 }
 
-void Socket::connect(const std::string & ip, const uint16_t port)
+void Socket::connect(const std::string & ip, const uint16_t port) const
 {
 #ifdef DEBUG
     std::cerr << "Trying to connect to " << ip << ":" << port << std::endl;
@@ -96,36 +118,62 @@ void Socket::listen(const uint64_t backlog) const
         throw std::runtime_error(std::string("listen failed: ").append(strerror(errno)));
 }
 
+NewConnection Socket::accept_() const
+{
+#ifdef DEBUG
+    std::cerr << "Trying to accept" << std::endl;
+#endif
+
+    sockaddr_in addr;
+    socklen_t addr_size = sizeof(addr);
+
+    int64_t new_fd = 0;
+    if ((new_fd = ::accept(*m_fd, (sockaddr *)&addr, &addr_size)) < 0)
+    {
+#ifdef DEBUG
+        std::cerr << "accept failed : " << strerror(errno) << std::endl;
+#endif
+        return NewConnection(new_fd, addr);
+    }
+
+    return NewConnection(new_fd, addr);
+}
+
 // XXX callbacks
 
 void Socket::read()
 {
-    if (m_info.state == READY)
-        m_cb->on_read(this);
+    m_cb->on_read(this);
 }
 
 void Socket::write()
 {
-    if (m_info.state == READY)
-        m_cb->on_write(this);
+    m_cb->on_write(this);
 }
 
-void Socket::close()
+void Socket::accept()
+{
+    NewConnection connection;
+    for (;;)
+    {
+        connection = accept_();
+        if (connection.fd == -1)
+            return;
+        m_cb->on_accept(this, connection);
+    }
+}
+
+void Socket::close(const uint64_t & close_reason)
 {
     if (m_info.state != INVALID)
     {
 #ifdef DEBUG
     std::cerr << "Closing socket #" << *m_fd << std::endl;
 #endif
-        remove_from_poller();
-        m_cb->on_close(this);
         m_info.state = INVALID;
+        remove_from_poller();
+        m_cb->on_close(this, close_reason);
     }
-}
-
-void Socket::error()
-{
-    m_cb->on_error(this);
 }
 
 // XXX options
@@ -168,7 +216,7 @@ void Socket::set_sndbuf(int size) const
 }
 
 // XXX support ----------------------------------------------------------------------------------------------------
-sockaddr_in Socket::get_saddr(const char * ip, const uint16_t port)
+sockaddr_in Socket::get_saddr(const char * ip, const uint16_t port) const
 {
     sockaddr_in saddr;
     ::memset(&saddr, 0, sizeof(saddr));

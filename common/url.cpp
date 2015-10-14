@@ -20,10 +20,7 @@ void Url::parse(const std::string & url)
     {
         offset = m_url.find_first_of(":/@", offset);
         if (offset == std::string::npos)
-        {
-//            std::cerr << "invalid url" << std::endl;
             return;
-        }
 
         char c = m_url[offset];
         switch (c)
@@ -175,4 +172,3 @@ bool Url::fill_tail(uint64_t & offset)
 
     return true;
 }
-

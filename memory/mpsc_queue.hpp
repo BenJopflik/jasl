@@ -35,4 +35,4 @@ private:
 private:
     Lock m_lock;
 
-};
+}; // class MPSCQueue

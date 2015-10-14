@@ -46,5 +46,3 @@ std::string StringWrapper::substr(uint64_t pos, uint64_t length) const
     uint64_t real_length = (pos + length <= m_size) ? (length) : (m_size - pos);
     return std::string(m_source + pos, real_length);
 }
-
-

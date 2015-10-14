@@ -18,7 +18,7 @@ namespace Logger
         return log(out, argv...);
     }
 
-}; // struct Logger
+}
 
 #define DEBUG_LOG(...)    do  { Logger::log(std::cerr, "\e[1;39mDEBUG  \e[0m\t", __FILE__, ":", __LINE__, "\t", ##__VA_ARGS__); } while(0);
 #define ERROR_LOG(...)    do  { Logger::log(std::cerr, "\e[1;31mERROR  \e[0m\t", __FILE__, ":", __LINE__, "\t", ##__VA_ARGS__); } while(0);

@@ -4,6 +4,11 @@
 #include <stdexcept>
 #include "common/to_string.hpp"
 
+IpAddr::IpAddr(const std::string & host, const uint16_t port)
+{
+    set(host, port);
+}
+
 static std::string host_to_ip(const std::string & host)
 {
     addrinfo   hints;

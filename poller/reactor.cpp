@@ -4,7 +4,7 @@
 
 Reactor::Reactor()
 {
-    m_poller.reset(new Poller());
+    m_poller = Poller::create();
 }
 
 void Reactor::run()
@@ -19,22 +19,32 @@ void Reactor::run()
             if (!event.action)
                 break;
 
-            if (event.action & PollerEvent::READ)
-                event.socket->read();
+            try
+            {
+                if (event.action & PollerEvent::READ)
+                    event.socket->read();
 
-            if (event.action & PollerEvent::WRITE)
-                event.socket->write();
+                if (event.action & PollerEvent::WRITE)
+                    event.socket->write();
 
-            if (event.action & PollerEvent::CLOSE)
+                if (event.action & PollerEvent::CLOSE)
+                    event.socket->close(event.close_reason);
+            }
+            catch (const std::exception & e)
+            {
+#ifdef DEBUG
+    std::cerr << "Exception in callback: " << e.what() << std::endl << "Closing socket." << std::endl;
+#endif
                 event.socket->close();
+            }
         }
     }
 }
 
 void Reactor::stop() const
 {
-    m_poller->signal(Poller::Signal::STOP);
     m_stop = true;
+    m_poller->signal(Poller::Signal::STOP);
 }
 
 void Reactor::signal(const Poller::Signal & signal) const
@@ -42,9 +52,9 @@ void Reactor::signal(const Poller::Signal & signal) const
     m_poller->signal(signal);
 }
 
-void Reactor::update_socket(const std::shared_ptr<Socket> & socket, uint64_t action)
+void Reactor::update_socket(const std::shared_ptr<Socket> & socket, const uint64_t & action, const uint64_t & timeout_step)
 {
-    m_poller->update_socket(socket, action);
+    m_poller->update_socket(socket, action, timeout_step);
 }
 
 // -------------
@@ -55,4 +65,3 @@ ReactorInThread::ReactorInThread()
     m_worker->add(std::bind(&ReactorInThread::run, this));
     m_worker->stop();
 }
-

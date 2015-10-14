@@ -8,6 +8,6 @@ struct CacheInfo
 {
     int32_t cache_line_size {-1};
     int32_t number_of_cache_lines {-1};
-};
+}; // struct CacheInfo
 
 CacheInfo get_cache_info();

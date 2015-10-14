@@ -5,74 +5,32 @@
 
 // std::thread wrapper
 #include <thread>
+#include <mutex>
+
 #include "common/non_copyable.hpp"
-#include "memory/spsc_queue.hpp"
+#include "memory/mpsc_queue.hpp"
 
 class Worker : public NonCopyable
 {
     const std::chrono::microseconds SLEEP_TIME {500};
 
 public:
-   ~Worker()
-    {
-        if (m_thread.joinable())
-            m_thread.join();
-    }
+   ~Worker();
 
-    static std::unique_ptr<Worker> create(const uint64_t task_queue_size)
-    {
-        std::unique_ptr<Worker> worker(new Worker(task_queue_size));
-        worker->m_thread = std::thread(std::bind(&Worker::run, worker.get()));
-        return worker;
-    }
-
-    void stop()
-    {
-        m_tasks.push([=]{stop_();});
-    }
-
-    bool add(const std::function<void()> & task)
-    {
-        return m_tasks.push(task);
-    }
-
-    bool bind_to(uint64_t cpu_id)
-    {
-        cpu_set_t current_cpu_set;
-
-        CPU_ZERO(&current_cpu_set);
-
-        CPU_SET(cpu_id, &current_cpu_set);
-
-        int set_affinity_result = pthread_setaffinity_np(m_thread.native_handle(), sizeof(cpu_set_t), &current_cpu_set);
-
-        return !set_affinity_result;
-    }
-
+    static std::unique_ptr<Worker> create(const uint64_t task_queue_size);
+    void stop();
+    bool add(const std::function<void()> & task);
+    bool bind_to(uint64_t cpu_id);
 
 private:
-    Worker(const uint64_t task_queue_size) : m_tasks(task_queue_size) {}
+    Worker(const uint64_t task_queue_size);
 
-    void run()
-    {
-        std::function<void()> func;
-        while (!m_done)
-        {
-            if (m_tasks.pop(func))
-                func();
-            else
-                std::this_thread::sleep_for(SLEEP_TIME);
-        }
-    }
-
-    void stop_()
-    {
-        m_done = true;
-    }
+    void run();
+    void stop_();
 
 private:
-    SPSCQueue<std::function<void()>, false> m_tasks;
+    SPSCQueue<std::function<void()>> m_tasks;
     std::thread m_thread;
     bool m_done {false};
 
-};
+}; // class Worker

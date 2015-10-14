@@ -8,4 +8,4 @@ struct SocketInfo
     int64_t type;
 
     uint64_t state;
-};
+}; // struct SocketInfo

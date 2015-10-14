@@ -12,7 +12,7 @@ struct BackoffBusy
     {
 
     }
-};
+}; // struct BackoffBusy
 
 struct BackoffYield
 {
@@ -20,7 +20,7 @@ struct BackoffYield
     {
         std::this_thread::yield();
     }
-};
+}; // struct BackoffYield
 
 template <class BackoffPolicy>
 class Spinlock
@@ -35,7 +35,6 @@ public :
     {
 
     }
-
 
     void lock()
     {
@@ -61,14 +60,15 @@ public :
 
 private:
     Spinlock(const Spinlock &) = delete;
-    Spinlock(Spinlock &&) = delete;
+    Spinlock(Spinlock &&)      = delete;
 
     Spinlock & operator = (const Spinlock &) = delete;
-    Spinlock & operator = (Spinlock &&) = delete;
+    Spinlock & operator = (Spinlock &&)      = delete;
 
 private:
     std::atomic<bool> m_lock {false};
-};
+
+}; // class Spinlock
 
 using SpinlockBusy  = Spinlock<BackoffBusy>;
 using SpinlockYield = Spinlock<BackoffYield>;

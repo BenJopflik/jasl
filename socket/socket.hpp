@@ -2,12 +2,13 @@
 
 #include <memory>
 
-#include "socket_info.hpp"
+#include "socket/socket_info.hpp"
 #include "common/file_descriptor.hpp"
 
 class sockaddr_in;
 class SocketCallbacks;
 class Poller;
+class NewConnection;
 
 class Socket
 {
@@ -27,13 +28,17 @@ public:
     virtual ~Socket();
 
     ssize_t write(const uint8_t * data, const ssize_t data_size);
+    ssize_t read (      uint8_t * data, const ssize_t data_size);
     ssize_t read (      uint8_t * data, const ssize_t data_size, bool & eof);
 
     uint64_t get_current_state() const {return m_info.state;}
     int64_t  get_fd()            const {return *m_fd;}
 
+    std::shared_ptr<Poller> get_poller() const;
+
     void attach_to_poller(const std::shared_ptr<Poller> & poller);
     void remove_from_poller();
+    void update_poll_mask(const uint64_t & mask, uint64_t timeout = 0);
 
     template<class T, typename ... Args>
     void set_callbacks(Args... args)
@@ -51,31 +56,31 @@ public:
     void set_rcvbuf(int) const;
     void set_sndbuf(int) const;
 
-// callbacks
-    virtual void read ();
-    virtual void write();
-    virtual void error();
-    virtual void close();
+// callbacks (XXX const?)
+    virtual void read  ();
+    virtual void write ();
+    virtual void accept();
+    virtual void close (const uint64_t & close_reason = 0);
 // ----------------------
 
 protected:
-    Socket(const int64_t type, const int64_t family);
-
-    void bind   (const std::string & ip, const uint16_t port);
-    void connect(const std::string & ip, const uint16_t port);
-    void listen (const uint64_t backlog = 1000) const;
-// TODO accept
+    Socket(const int64_t type, const int64_t family, const int64_t fd = FileDescriptor::INVALID_FD);
 
     virtual std::shared_ptr<Socket> get_ptr() = 0;
 
-private:
-    sockaddr_in get_saddr(const char * ip = nullptr, const uint16_t port = 0);
+    void bind   (const std::string & ip, const uint16_t port) const;
+    void connect(const std::string & ip, const uint16_t port) const;
+    void listen (const uint64_t backlog = 1000) const;
+    NewConnection accept_() const;
 
 private:
-    std::shared_ptr<Poller>          m_poller;
+    sockaddr_in get_saddr(const char * ip = nullptr, const uint16_t port = 0) const;
+
+private:
+    std::weak_ptr<Poller>            m_poller;
     std::shared_ptr<FileDescriptor>  m_fd;
     std::unique_ptr<SocketCallbacks> m_cb;
+    uint64_t m_close;
+    mutable SocketInfo m_info; // XXX change to shared_ptr?
 
-    SocketInfo m_info; // XXX change to shared_ptr?
-
-};
+}; // class Socket

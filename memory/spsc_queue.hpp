@@ -103,4 +103,4 @@ private:
     std::condition_variable m_not_empty;
     std::condition_variable m_not_full;
 
-};
+}; // class SPSCQueue

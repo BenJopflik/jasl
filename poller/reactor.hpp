@@ -12,13 +12,13 @@ public:
     void stop() const;
 
     void signal(const Poller::Signal & signal) const;
-    void update_socket(const std::shared_ptr<Socket> & socket, uint64_t action);
+    void update_socket(const std::shared_ptr<Socket> & socket, const uint64_t & action, const uint64_t & timeout_step = SocketContext::DEFAULT_TIMEOUT_MS);
 
 private:
     std::shared_ptr<Poller> m_poller;
     mutable bool m_stop {false};
 
-};
+}; // class Reactor
 
 class ReactorInThread : public Reactor
 {
@@ -29,5 +29,4 @@ public:
 private:
     std::unique_ptr<Worker> m_worker;
 
-};
-
+}; // class ReactorInThread

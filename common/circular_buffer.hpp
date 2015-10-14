@@ -22,7 +22,7 @@ public:
     inline uint64_t available_write() const;
 
     inline bool empty() const;
-    inline bool full()  const;
+    inline bool full () const;
 
 private:
     void increase(uint8_t *& ptr, uint64_t size);
@@ -38,5 +38,4 @@ private:
     uint8_t * m_end   {nullptr};
     bool m_overlap {false};
 
-};
-
+}; // class CircularBuffer

@@ -1,30 +1,16 @@
 #include "socket/tcp/client.hpp"
 
-#include <unistd.h>
-#include <sys/socket.h>
-
-std::shared_ptr<Socket> TcpClient::create(const Params & params)
+std::shared_ptr<Socket> TcpClient::create(const Tcp::Params & params)
 {
-    return std::shared_ptr<TcpClient>(new TcpClient(params));
+    return std::shared_ptr<Socket>(new TcpClient(params));
 }
 
-TcpClient::TcpClient(const Params & params) : Socket(SOCK_STREAM, AF_INET)
+TcpClient::TcpClient(const Tcp::Params & params) : Tcp(params)
 {
-    if (params.flags & Params::NON_BLOCK)
-        Socket::set_nonblock();
-
-    if (params.flags & Params::REUSE_ADDR)
-        set_reuseaddr(1);
-
-    if (params.read_buffer)
-        set_rcvbuf(params.read_buffer);
-
-    if (params.write_buffer)
-        set_sndbuf(params.write_buffer);
-
     try
     {
-        Socket::connect(params.ip, params.port);
+        if (params.fd == FileDescriptor::INVALID_FD)
+            Socket::connect(params.ip, params.port);
     }
     catch (const std::exception & e)
     {

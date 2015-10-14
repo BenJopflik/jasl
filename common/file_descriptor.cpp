@@ -2,6 +2,8 @@
 
 #include <assert.h>
 #include <unistd.h>
+#include <iostream>
+#include <cstring>
 
 std::shared_ptr<FileDescriptor> FileDescriptor::create(const FD & fd)
 {
@@ -12,12 +14,21 @@ FileDescriptor::FileDescriptor(const FD & fd) : m_fd(fd)
 {
     if (m_fd < 0)
         throw std::runtime_error("Invalid FileDescriptor");
+
+#ifdef DEBUG
+    std::cerr << "new FileDescriptor " << m_fd << std::endl;
+#endif
 }
 
 FileDescriptor::~FileDescriptor()
 {
     if (m_fd != INVALID_FD)
+    {
+#ifdef DEBUG
+        std::cerr << "closing fd " << m_fd << std::endl;
+#endif
         ::close(m_fd);
+    }
 
     m_fd = INVALID_FD;
 }
@@ -33,7 +44,7 @@ ssize_t FileDescriptor::write(const uint8_t * data, const ssize_t data_size) con
     {
         if (n_bytes <= 0)
         {
-            if (errno == EAGAIN || errno == EINTR)
+            if (errno == EINTR)
                 continue;
         }
         else if ((offset += n_bytes) < data_size)
@@ -55,7 +66,7 @@ ssize_t FileDescriptor::read(uint8_t * data, const ssize_t data_size) const
 ssize_t FileDescriptor::read(uint8_t * data, const ssize_t data_size, bool & eof) const
 {
     assert( data && data_size && "invalid input args");
-
+    ::memset(data, 0, data_size);
     ssize_t offset  = 0;
     ssize_t n_bytes = 0;
 
@@ -65,7 +76,7 @@ ssize_t FileDescriptor::read(uint8_t * data, const ssize_t data_size, bool & eof
     {
         if (n_bytes < 0)
         {
-            if (errno == EINTR || errno == EAGAIN)
+            if (errno == EINTR)
                 continue;
         }
         else if ((offset += n_bytes) < data_size)

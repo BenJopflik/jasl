@@ -10,7 +10,6 @@ struct Action
 
     };
 
-public:
     enum
     {
         READ = EPOLLIN | NECESARRY_FLAGS,
@@ -33,4 +32,4 @@ public:
     uint64_t timeout_in_milliseconds {0};
     uint64_t user_data {0};
 
-};
+}; // struct Action

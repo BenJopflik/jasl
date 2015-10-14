@@ -1,7 +1,9 @@
 CHUNKER_TEMPLATE
 Chunker<CHUNKER_ARGS>::Chunker()
 {
+#ifdef DEBUG
     std::cerr << "trying to create chunker<" << max_chunks << ", " << max_chunk_size << ", " << corrected_chunk_size << ">" << std::endl;
+#endif
 
     const uint64_t BUFFER_SIZE = max_chunks * sizeof(Block);
 
@@ -30,7 +32,9 @@ Chunker<CHUNKER_ARGS>::~Chunker()
 CHUNKER_TEMPLATE
 std::shared_ptr<uint8_t> Chunker<CHUNKER_ARGS>::get_shared(uint64_t size)
 {
+#ifdef DEBUG
     std::cerr << "trying to create chunk of size " << size << std::endl;
+#endif
     assert(size);
     if (size > corrected_chunk_size)
         throw std::runtime_error("size is too big");
@@ -60,7 +64,6 @@ uint8_t * Chunker<CHUNKER_ARGS>::create()
 CHUNKER_TEMPLATE
 void Chunker<CHUNKER_ARGS>::destroy(uint8_t *ptr)
 {
-    std::cerr << "destoying chunk" << std::endl;
     Block * block = reinterpret_cast<Block *>(ptr);
     if (!m_next)
         block->next = max_chunks;
